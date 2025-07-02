@@ -83,7 +83,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 
 	bearerToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Error getting bearer token", err)
+		respondWithError(w, http.StatusUnauthorized, "Error getting bearer token", err)
 		return
 	}
 

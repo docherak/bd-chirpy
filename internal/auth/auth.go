@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +12,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+)
+
+type TokenType string
+
+const (
+	TokenTypeAccess TokenType = "chirpy-access"
 )
 
 func HashPassword(password string) (string, error) {
@@ -26,7 +35,7 @@ func CheckPasswordHash(password, hash string) error {
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
 	mySigningKey := []byte(tokenSecret)
 	claims := &jwt.RegisteredClaims{
-		Issuer:    "chirpy",
+		Issuer:    string(TokenTypeAccess),
 		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiresIn)),
 		Subject:   userID.String(),
@@ -44,15 +53,25 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(tokenSecret), nil
 	})
-	if !token.Valid {
-		return uuid.UUID{}, errors.New("Invalid token")
-	}
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	id, err := uuid.Parse(claims.Subject)
+	userIDString, err := token.Claims.GetSubject()
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.Nil, err
+	}
+
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if issuer != string(TokenTypeAccess) {
+		return uuid.Nil, errors.New("Invalid issuer")
+	}
+
+	id, err := uuid.Parse(userIDString)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Invalid user ID: %w", err)
 	}
 	return id, nil
 
@@ -64,11 +83,18 @@ func GetBearerToken(headers http.Header) (string, error) {
 		return "", errors.New("Authorization header is empty")
 	}
 	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
+	if len(parts) < 2 || parts[0] != "Bearer" {
 		return "", errors.New("Malformed authorization header")
 	}
-	if parts[1] == "" {
-		return "", errors.New("Malformed authorization header - token is empty")
-	}
 	return parts[1], nil
+}
+
+func MakeRefreshToken() (string, error) {
+	token := make([]byte, 32)
+	_, err := rand.Read(token)
+	if err != nil {
+		return "", err
+	}
+	encodedStr := hex.EncodeToString(token)
+	return encodedStr, nil
 }
