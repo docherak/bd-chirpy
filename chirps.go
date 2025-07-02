@@ -5,10 +5,12 @@ import (
 	"net/http"
 
 	"errors"
-	"github.com/docherak/bd-chirpy/internal/database"
-	"github.com/google/uuid"
 	"strings"
 	"time"
+
+	"github.com/docherak/bd-chirpy/internal/auth"
+	"github.com/docherak/bd-chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
 type Chirp struct {
@@ -63,6 +65,7 @@ func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request
 	dbChirps, err := cfg.db.GetChirps(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error getting chirps", err)
+		return
 	}
 
 	apiChirps := []Chirp{}
@@ -75,13 +78,24 @@ func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request
 
 func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string `json:"body"`
-		UserID string `json:"user_id"`
+		Body string `json:"body"`
+	}
+
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Error getting bearer token", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(bearerToken, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid JWT", err)
+		return
 	}
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
@@ -93,12 +107,6 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	userID, err := uuid.Parse(params.UserID)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Couldn't parse UUID", err)
-		return
-	}
-
 	chirpParams := database.CreateChirpParams{
 		Body:   cleanedBody,
 		UserID: userID,
@@ -107,6 +115,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 	chirp, err := cfg.db.CreateChirp(r.Context(), chirpParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating chirp", err)
+		return
 	}
 
 	apiChirp := databaseChirpToAPIChirp(chirp)
