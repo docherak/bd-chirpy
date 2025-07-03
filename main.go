@@ -59,6 +59,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	// In REST, it's conventional to name all of your endpoints after the resource that they represent and for the name to be plural.
 	mux.HandleFunc("POST /api/users", apiCfg.handlerUsersCreate)
+	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsGetAll)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGetSingle)
