@@ -16,3 +16,8 @@ DELETE FROM users;
 UPDATE users SET email = $2, hashed_password = $3, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
+
+-- name: GrantPremium :one
+UPDATE users SET is_chirpy_red = true
+WHERE id = $1
+RETURNING *;
