@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -82,6 +83,11 @@ func (cfg *apiConfig) handlerChirpsGetSingle(w http.ResponseWriter, r *http.Requ
 }
 
 func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
+	sortArg := r.URL.Query().Get("sort")
+	if sortArg == "" || (sortArg != "asc" && sortArg != "desc") {
+		sortArg = "asc"
+	}
+
 	authorID := r.URL.Query().Get("author_id")
 	if authorID != "" {
 		userID, err := uuid.Parse(authorID)
@@ -99,6 +105,16 @@ func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request
 			apiChirps = append(apiChirps, databaseChirpToAPIChirp(dbChirp))
 		}
 
+		if sortArg == "desc" {
+			sort.Slice(apiChirps, func(i, j int) bool {
+				return apiChirps[i].CreatedAt.After(apiChirps[j].CreatedAt)
+			})
+		} else {
+			sort.Slice(apiChirps, func(i, j int) bool {
+				return apiChirps[i].CreatedAt.Before(apiChirps[j].CreatedAt)
+			})
+		}
+
 		respondWithJSON(w, http.StatusOK, apiChirps)
 		return
 	}
@@ -112,6 +128,15 @@ func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request
 	apiChirps := []Chirp{}
 	for _, dbChirp := range dbChirps {
 		apiChirps = append(apiChirps, databaseChirpToAPIChirp(dbChirp))
+	}
+	if sortArg == "desc" {
+		sort.Slice(apiChirps, func(i, j int) bool {
+			return apiChirps[i].CreatedAt.After(apiChirps[j].CreatedAt)
+		})
+	} else {
+		sort.Slice(apiChirps, func(i, j int) bool {
+			return apiChirps[i].CreatedAt.Before(apiChirps[j].CreatedAt)
+		})
 	}
 
 	respondWithJSON(w, http.StatusOK, apiChirps)
