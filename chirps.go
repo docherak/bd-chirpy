@@ -82,25 +82,24 @@ func (cfg *apiConfig) handlerChirpsGetSingle(w http.ResponseWriter, r *http.Requ
 }
 
 func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
-	type returnVals struct {
-		Users []User
-	}
-
-	chirpIDString := r.PathValue("chirpID")
-	if len(chirpIDString) > 0 {
-		chirpID, err := uuid.Parse(chirpIDString)
+	authorID := r.URL.Query().Get("author_id")
+	if authorID != "" {
+		userID, err := uuid.Parse(authorID)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Couldn't parse UUID", err)
 			return
 		}
-		dbChirp, err := cfg.db.GetChirp(r.Context(), chirpID)
+		dbChirps, err := cfg.db.GetChirpsByUser(r.Context(), userID)
 		if err != nil {
-			respondWithError(w, http.StatusNotFound, "Chirp not found", err)
+			respondWithError(w, http.StatusInternalServerError, "Error getting chirps", err)
 			return
 		}
+		apiChirps := []Chirp{}
+		for _, dbChirp := range dbChirps {
+			apiChirps = append(apiChirps, databaseChirpToAPIChirp(dbChirp))
+		}
 
-		apiChirp := databaseChirpToAPIChirp(dbChirp)
-		respondWithJSON(w, http.StatusOK, apiChirp)
+		respondWithJSON(w, http.StatusOK, apiChirps)
 		return
 	}
 
