@@ -16,6 +16,7 @@ type apiConfig struct {
 	db             *database.Queries
 	env            string
 	jwtSecret      string
+	polkApiSecret  string
 }
 
 func main() {
@@ -29,6 +30,11 @@ func main() {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET must be set")
+	}
+
+	polkaApiSecret := os.Getenv("POLKA_KEY")
+	if polkaApiSecret == "" {
+		log.Fatal("POLKA_KEY must be set")
 	}
 
 	dbURL := os.Getenv("DB_URL")
@@ -50,6 +56,7 @@ func main() {
 		db:             dbQueries,
 		env:            environment,
 		jwtSecret:      jwtSecret,
+		polkApiSecret:  polkaApiSecret,
 	}
 
 	mux := http.NewServeMux()

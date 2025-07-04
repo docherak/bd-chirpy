@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
 	"net/http"
+
+	"github.com/docherak/bd-chirpy/internal/auth"
+	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlerPolkaEvents(w http.ResponseWriter, r *http.Request) {
@@ -15,9 +17,20 @@ func (cfg *apiConfig) handlerPolkaEvents(w http.ResponseWriter, r *http.Request)
 		Data  data   `json:"data"`
 	}
 
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't extract apiKey", err)
+		return
+	}
+
+	if apiKey != cfg.polkApiSecret {
+		respondWithError(w, http.StatusUnauthorized, "API key is invalid", err)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
